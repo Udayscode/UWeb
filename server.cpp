@@ -106,7 +106,7 @@ int main() {
                 cout << "[*] POST Body: " << body << endl;
             }
         }
-
+        
         if (requestedPath.empty() || requestedPath == "/") {
             requestedPath = "/index.html";
         }
