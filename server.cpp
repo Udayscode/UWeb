@@ -6,8 +6,45 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <nlohmann/json.hpp>
 
+using json = nlohmann::json;
 using namespace std;
+
+string extractBody(const string& request) {
+    size_t headerEnd = request.find("\r\n\r\n");
+    if (headerEnd != string::npos) {
+        return request.substr(headerEnd + 4);
+    }
+    return "";
+}
+
+string getHeaderValue(const string& request, const string headerName) {
+    istringstream stream(request);
+    string line;
+    string prefix = headerName + ": ";
+    while (getline(stream, line) && line != "\r") {
+        if (line.substr(0, prefix.size()) == prefix) {
+            return line.substr(prefix.size());
+        }
+    }
+    return "";
+}
+
+map<string, string> parseFromData(const string& body) {
+    map<string, string> res;
+    istringstream ss(body);
+    string token;
+    while (getline(ss, token, '&')) {
+        auto posi = token.find('=');
+        if (posi != string::npos) {
+            string key = token.substr(0, posi);
+            string value = token.substr(posi + 1);
+            res[key] = value;
+        }
+    }
+    return res;
+}
 
 bool endsWith(const string& value, const string& ending) {
     if (ending.size() > value.size()) return false;
@@ -76,60 +113,66 @@ int main() {
 
         cout << "[*] Client connected, sending response...\n";
 
-        read(new_socket, buffer, 4096);
+        int valread = read(new_socket, buffer, 4096);
+        string request(buffer, valread);
         cout << "[*] Recieved request:\n" << buffer << endl;
 
         // 6. Properly formatted HTTP response
-        string request(buffer);
         string response;
         string requestedPath;
 
-        size_t pos = request.find("GET ");
-        if (pos != string::npos) {
-            size_t end_pos = request.find(" ", pos + 4);
-            requestedPath = request.substr(pos + 4, end_pos - pos - 4);
-        }
+        if (request.find("POST /login") != string::npos) {
+            string body = extractBody(request);
+            auto formData = parseFromData(body);
+            string user = formData["username"];
+            string pass = formData["password"];
 
-        size_t headerEnd = request.find("\r\n\r\n");
-        string body;
-
-        if (headerEnd != string::npos) {
-            size_t contentLengthPos = request.find("Content-Length: ");
-            if (contentLengthPos != string::npos) {
-                contentLengthPos += 16;
-                size_t lineEnd = request.find("\r\n", contentLengthPos);
-                string lenStr = request.substr(contentLengthPos, lineEnd - contentLengthPos);
-                int contentLen = stoi(lenStr);
-
-                body = request.substr(headerEnd + 4, contentLen);
-
-                cout << "[*] POST Body: " << body << endl;
-            }
-        }
-        
-        if (requestedPath.empty() || requestedPath == "/") {
-            requestedPath = "/index.html";
-        }
-
-        string filePath = "./public" + requestedPath;
-        string fileData = readFile(filePath);
-
-        if (!fileData.empty()) {
-            string contentType = getMimeType(filePath);
+            json j = {
+                {"status", "success"},
+                {"username", user},
+                {"password", pass}
+            };
+            string data = j.dump();
             stringstream oss;
-            oss << "HTTP/1.1 200 OK \r\n"
-                << "Content-Type: " << contentType << "\r\n"
-                << "Content-Length: " << fileData.size() << "\r\n"
+            oss << "HTTP/1.1 200 OK\r\n"
+                << "Content-Type: application/json\r\n"
+                << "Content-Length: " << data.size() << "\r\n"
                 << "\r\n"
-                << fileData;
+                << data;
             response = oss.str();
-        } else {
-            response = 
-                "HTTP/1.1 404 Not Found \r\n" 
-                "Content-Type: text/plain\r\n"
-                "Content-Length: 13 \r\n"
-                "\r\n"
-                "404 Not Found";
+
+        } else if (request.find("GET ") != string::npos) {
+
+            size_t pos = request.find("GET ");
+            if (pos != string::npos) {
+                size_t end_pos = request.find(" ", pos + 4);
+                requestedPath = request.substr(pos + 4, end_pos - pos - 4);
+            }
+
+            if (requestedPath.empty() || requestedPath == "/") {
+                requestedPath = "/index.html";
+            }
+
+            string filePath = "./public" + requestedPath;
+            string fileData = readFile(filePath);
+
+            if (!fileData.empty()) {
+                string contentType = getMimeType(filePath);
+                stringstream oss;
+                oss << "HTTP/1.1 200 OK \r\n"
+                    << "Content-Type: " << contentType << "\r\n"
+                    << "Content-Length: " << fileData.size() << "\r\n"
+                    << "\r\n"
+                    << fileData;
+                response = oss.str();
+            } else {
+                response = 
+                    "HTTP/1.1 404 Not Found \r\n" 
+                    "Content-Type: text/plain\r\n"
+                    "Content-Length: 13 \r\n"
+                    "\r\n"
+                    "404 Not Found";
+            }
         }
 
         // 7. Send response
