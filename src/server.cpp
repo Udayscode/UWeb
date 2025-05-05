@@ -7,29 +7,12 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <nlohmann/json.hpp>
+#include "request.hpp"
+#include "response.hpp"
+#include "middleware.hpp"
 
 using json = nlohmann::json;
 using namespace std;
-
-string extractBody(const string& request) {
-    size_t headerEnd = request.find("\r\n\r\n");
-    if (headerEnd != string::npos) {
-        return request.substr(headerEnd + 4);
-    }
-    return "";
-}
-
-string getHeaderValue(const string& request, const string headerName) {
-    istringstream stream(request);
-    string line;
-    string prefix = headerName + ": ";
-    while (getline(stream, line) && line != "\r") {
-        if (line.substr(0, prefix.size()) == prefix) {
-            return line.substr(prefix.size());
-        }
-    }
-    return "";
-}
 
 map<string, string> parseFromData(const string& body) {
     map<string, string> res;
@@ -114,16 +97,17 @@ int main() {
         cout << "[*] Client connected, sending response...\n";
 
         int valread = read(new_socket, buffer, 4096);
-        string request(buffer, valread);
-        cout << "[*] Recieved request:\n" << buffer << endl;
+        string rawRequest(buffer, valread);
+        Request req(rawRequest);
+        Response res(new_socket);
+        cout << "[*] Recieved request:\n" << rawRequest << endl;
 
         // 6. Properly formatted HTTP response
         string response;
         string requestedPath;
 
-        if (request.find("POST /login") != string::npos) {
-            string body = extractBody(request);
-            auto formData = parseFromData(body);
+        if (req.getMethod() == "POST" && req.getPath() == "/login") {
+            auto formData = parseFromData(req.getBody());
             string user = formData["username"];
             string pass = formData["password"];
 
@@ -133,50 +117,45 @@ int main() {
                 {"password", pass}
             };
             string data = j.dump();
-            stringstream oss;
-            oss << "HTTP/1.1 200 OK\r\n"
-                << "Content-Type: application/json\r\n"
-                << "Content-Length: " << data.size() << "\r\n"
-                << "\r\n"
-                << data;
-            response = oss.str();
+            
+            res.setStatus(200, "OK");
+            res.setHeader("Content-Type", "application/json");
+            res.setHeader("Content-Length", to_string(data.size()));
+            res.setBody(data);
 
-        } else if (request.find("GET ") != string::npos) {
+            res.send();
 
-            size_t pos = request.find("GET ");
-            if (pos != string::npos) {
-                size_t end_pos = request.find(" ", pos + 4);
-                requestedPath = request.substr(pos + 4, end_pos - pos - 4);
-            }
-
+        } else if (req.getMethod() == "GET") {
+            requestedPath = req.getPath();
             if (requestedPath.empty() || requestedPath == "/") {
                 requestedPath = "/index.html";
             }
 
             string filePath = "./public" + requestedPath;
             string fileData = readFile(filePath);
+            string contentType = getMimeType(filePath);
 
             if (!fileData.empty()) {
-                string contentType = getMimeType(filePath);
-                stringstream oss;
-                oss << "HTTP/1.1 200 OK \r\n"
-                    << "Content-Type: " << contentType << "\r\n"
-                    << "Content-Length: " << fileData.size() << "\r\n"
-                    << "\r\n"
-                    << fileData;
-                response = oss.str();
+                res.setStatus(200, "OK");
+                res.setHeader("Content-Type", contentType);
+                res.setHeader("Content-Length", to_string(fileData.size()));
+                res.setBody(fileData);
+
+                res.send();
             } else {
-                response = 
-                    "HTTP/1.1 404 Not Found \r\n" 
-                    "Content-Type: text/plain\r\n"
-                    "Content-Length: 13 \r\n"
-                    "\r\n"
-                    "404 Not Found";
+                res.setStatus(404, "Not Found");
+                res.setHeader("Content-Type", contentType);
+                res.setBody("404 Not Found");
+
+                res.send();
             }
         }
 
         // 7. Send response
-        write(new_socket, response.c_str(), response.size());
+        ssize_t bytesSent = write(new_socket, response.c_str(), response.size());
+        if (bytesSent == string::npos) {
+            perror("Failed to send respose");
+        }
 
         // 8. Close sockets
         cout << "[*] Closing connections...\n";
@@ -185,3 +164,4 @@ int main() {
         close(server_fd);
     return 0;
 }
+// g++ src/server.cpp src/request.cpp -o server
