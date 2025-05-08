@@ -6,6 +6,9 @@
 #include <sstream>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <vector>
+#include "cookie.hpp"
+
 using namespace std;
 
 class Response {
@@ -33,11 +36,35 @@ public:
     void setBody(const string& content) {
         body = content;
     }
+
+    void setCookie(const Cookie& cookie) {
+        cookies.push_back(cookie);
+    }
+
+    void setCookie(const string& name, const string& value, int maxAgeSeconds = 3600) {
+        Cookie cookie;
+        cookie.name = name;
+        cookie.value = value;
+        cookie.expires = time(nullptr) + maxAgeSeconds
+        cookies.push_back(cookie);
+    }
+
+    void redirect(const string& location) {
+        statusCode = 302;
+        statusMessage = "Found";
+        headers["Location"] = location;
+    }
+
+    void json(const string& jsonContent) {
+        headers["Content-Type"] = "application/json";
+        body = jsonContent;
+    }
     
     void send() {
         stringstream responseStream;
 
-        responseStream << "HTTP/1.1" << statusCode << " " << statusMessage << "\r\n";
+        responseStream << "HTTP/1.1 " << statusCode << " " << statusMessage << "\r\n";
+        
         headers["Content-Length"] = to_string(body.length());
         if (headers.find("Content-Type") == headers.end()) {
             headers["Content-Type"] = "text/plain";
@@ -47,11 +74,22 @@ public:
             responseStream << pair.first << ": " << pair.second << "\r\n";
         }
 
+        for (const auto& cookie : cookies) {
+            responseStream << "Set-Cookie: " << cookie.toString() << "\r\n";
+        }
+
         responseStream << "\r\n";
         responseStream << body;
 
         string finalResponse = responseStream.str();
+
+        cout << "[*] Sending Response:\n" << finalResponse << endl;
+        
         ::send(clientSocket, finalResponse.c_str(), finalResponse.length(), 0);
+
+        cout << "[*] Closing connections...\n";
+        
+        close(clientSocket);
     }
 };
 

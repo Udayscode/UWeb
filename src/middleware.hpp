@@ -10,7 +10,7 @@
 using namespace std;
 
 void loggingMiddleware(Request& req, Response& res) {
-    cout << "[LOG]" << req.getMethod() << " " << req.getPath() << endl;
+    cout << "[LOG] " << req.getMethod() << " " << req.getPath() << endl;
 }
 
 void authMiddleware(Request& req, Response& res) {

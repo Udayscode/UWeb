@@ -102,11 +102,19 @@ int main() {
         Response res(new_socket);
         cout << "[*] Recieved request:\n" << rawRequest << endl;
 
+        loggingMiddleware(req, res);
+        corsMiddleware(req, res);
+        if (req.getMethod() == "OPTIONS") continue;
+
+        rateLimitMiddleware(req, res);
+        if (req.getBody() == "Too Many Requests") continue;
+
         // 6. Properly formatted HTTP response
         string response;
         string requestedPath;
 
         if (req.getMethod() == "POST" && req.getPath() == "/login") {
+
             auto formData = parseFromData(req.getBody());
             string user = formData["username"];
             string pass = formData["password"];
@@ -114,7 +122,8 @@ int main() {
             json j = {
                 {"status", "success"},
                 {"username", user},
-                {"password", pass}
+                {"password", pass},
+                {"token", "Bearer secret123"}
             };
             string data = j.dump();
             
@@ -125,8 +134,14 @@ int main() {
 
             res.send();
 
-        } else if (req.getMethod() == "GET") {
+        } else if (req.getMethod() == "GET") {        
             requestedPath = req.getPath();
+
+            if (requestedPath == "/secret.html" || requestedPath == "/dashboard.html") {
+                authMiddleware(req, res);
+                if (req.getBody() == "Unauthorized Access") continue;
+            }
+
             if (requestedPath.empty() || requestedPath == "/") {
                 requestedPath = "/index.html";
             }
@@ -151,17 +166,12 @@ int main() {
             }
         }
 
-        // 7. Send response
-        ssize_t bytesSent = write(new_socket, response.c_str(), response.size());
-        if (bytesSent == string::npos) {
-            perror("Failed to send respose");
-        }
-
         // 8. Close sockets
-        cout << "[*] Closing connections...\n";
-        close(new_socket);
+        // cout << "[*] Closing connections...\n";
+        // close(new_socket);
     }
         close(server_fd);
     return 0;
 }
-// g++ src/server.cpp src/request.cpp -o server
+// g++ src/server.cpp src/request.cpp -o server && ./server
+//curl -v http://localhost:8080/
