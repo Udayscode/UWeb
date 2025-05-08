@@ -10,6 +10,10 @@
 #include "request.hpp"
 #include "response.hpp"
 #include "middleware.hpp"
+#include "session.hpp"
+#include "cookie.hpp"
+#include "user_store.hpp"
+#include "session_middleware.hpp"
 
 using json = nlohmann::json;
 using namespace std;
@@ -102,6 +106,7 @@ int main() {
         Response res(new_socket);
         cout << "[*] Recieved request:\n" << rawRequest << endl;
 
+        //Apply middleware
         loggingMiddleware(req, res);
         corsMiddleware(req, res);
         if (req.getMethod() == "OPTIONS") continue;
@@ -109,37 +114,96 @@ int main() {
         rateLimitMiddleware(req, res);
         if (req.getBody() == "Too Many Requests") continue;
 
-        // 6. Properly formatted HTTP response
-        string response;
-        string requestedPath;
+        sessionMiddleware(req, res);
 
         if (req.getMethod() == "POST" && req.getPath() == "/login") {
+            string username = req.getFormData("username");
+            string password = req.getFormData("password");
 
-            auto formData = parseFromData(req.getBody());
-            string user = formData["username"];
-            string pass = formData["password"];
+            bool authenticated = userStore.authenticatedUser(username, password);
+            if (authenticated) {
+                User* user = userStore.getUserByUsername(username);
 
-            json j = {
-                {"status", "success"},
-                {"username", user},
-                {"password", pass},
-                {"token", "Bearer secret123"}
-            };
-            string data = j.dump();
-            
-            res.setStatus(200, "OK");
-            res.setHeader("Content-Type", "application/json");
-            res.setHeader("Content-Length", to_string(data.size()));
-            res.setBody(data);
+                string sessionId = sessionManager.createSession(user->id, user->password);
+
+                Cookie sessionCookie;
+                sessionCookie.name = "session_id";
+                sessionCookie.value = sessionId;
+                sessionCookie.expires = time(nullptr) + 3600;
+                sessionCookie.httpOnly = true;
+
+                res.setCookie(sessionCookie);
+
+                json responseJson = {
+                    {"status", "success"},
+                    {"message", "Login successful"},
+                    {"username", username};
+                };
+
+                res.setStatus(200, "OK");
+                res.setHeader("Content-Type", "application/json");
+                res.setBody(responseJson.dump());
+                res.send();
+            } else {
+                json responseJson = {
+                    {"status", "error"},
+                    {"message", "Invalid username or password"}
+                };
+
+                res.setStatus(401, "Unauthorized");
+                res.setHeader("Content-Type", "application/json");
+                res.setBody(responseJson.dump());
+                res.send();
+            }
+        } else if (req.getMethod() == "POST" && req.getPath() == "/logout") {
+            string sessionId = req.getCookie("session_id");
+            if (!sessionId.empty()) {
+                sessionManager.destroySession(sessionId);
+            }
+
+            Cookie sessionCookie;
+            sessionCookie.name = "session_id";
+            sessionCookie.value = "";
+            sessionCookie.expires = 1;
+
+            res.setCookie(sessionCookie);
+            res.redirect("/login.html");
+            res.send();
+        } else if (req.getMethod() == "GET" && req.getPath() == "/api/user") {
+            string sessionId = req.getCookie("session_id");
+            Session* session = sessionManager.getSession(sessionId);
+
+            if (session) {
+                json responseJson = {
+                    {"status", "success"},
+                    {"loggedIn", true},
+                    {"username", session->username},
+                    {"userId", session->userId}
+                };
+
+                res.setStatus(200, "OK");
+                res.setHeader("Content-Type", "application/json");
+                res.setBody(responseJson.dump());
+            } else {
+                json responseJson = {
+                    {"status", "success"},
+                    {"loggedIn", false}
+                };
+                
+                res.setStatus(200, "OK");
+                res.setHeader("Content-Type", "application/json");
+                res.setBody(responseJson.dump());
+            }
 
             res.send();
+        } else if (req.getMethod() == "GET") {
+            string requestedPath == req.getPath();
 
-        } else if (req.getMethod() == "GET") {        
-            requestedPath = req.getPath();
-
-            if (requestedPath == "/secret.html" || requestedPath == "/dashboard.html") {
-                authMiddleware(req, res);
-                if (req.getBody() == "Unauthorized Access") continue;
+            if (requestedPath == "/dashboard.html" || 
+                requestedPath == "/profile.html" || 
+                requestedPath == "/admin.html" || 
+                requestedPath.find("/api/protected") == 0) {
+                    if (!authSessionMiddleware(req, res)) continue;
             }
 
             if (requestedPath.empty() || requestedPath == "/") {
@@ -165,12 +229,9 @@ int main() {
                 res.send();
             }
         }
-
-        // 8. Close sockets
-        // cout << "[*] Closing connections...\n";
-        // close(new_socket);
     }
-        close(server_fd);
+    
+    close(server_fd);
     return 0;
 }
 // g++ src/server.cpp src/request.cpp -o server && ./server
