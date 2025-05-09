@@ -1,6 +1,8 @@
 #include "request.hpp"
 #include <sstream>
 #include <string.h>
+#include "cookie.hpp"
+
 using namespace std;
 
 Request::Request(const string& rawRequest) {
@@ -63,7 +65,7 @@ void Request::parseQuery() {
 
         while (getline(queryStream, pair, '&')) {
             size_t equalsPos = pair.find('=');
-            if (equalsPos != sring::npos) {
+            if (equalsPos != string::npos) {
                 string key = pair.substr(0, equalsPos);
                 string value = pair.substr(equalsPos + 1);
                 query[key] = value;
@@ -79,7 +81,7 @@ void Request::parseFromData() {
 
         while (getline(formStream, pair, '&')) {
             size_t equalsPos = pair.find('=');
-            if (equalsPos != sring::npos) {
+            if (equalsPos != string::npos) {
                 string key = pair.substr(0, equalsPos);
                 string value = pair.substr(equalsPos + 1);
                 formData[key] = value;

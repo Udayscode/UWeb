@@ -120,11 +120,11 @@ int main() {
             string username = req.getFormData("username");
             string password = req.getFormData("password");
 
-            bool authenticated = userStore.authenticatedUser(username, password);
+            bool authenticated = userStore.authenticateUser(username, password);
             if (authenticated) {
                 User* user = userStore.getUserByUsername(username);
 
-                string sessionId = sessionManager.createSession(user->id, user->password);
+                string sessionId = sessionManager.createSession(user->id, user->passwordHash);
 
                 Cookie sessionCookie;
                 sessionCookie.name = "session_id";
@@ -137,7 +137,7 @@ int main() {
                 json responseJson = {
                     {"status", "success"},
                     {"message", "Login successful"},
-                    {"username", username};
+                    {"username", username}
                 };
 
                 res.setStatus(200, "OK");
@@ -197,13 +197,15 @@ int main() {
 
             res.send();
         } else if (req.getMethod() == "GET") {
-            string requestedPath == req.getPath();
+            string requestedPath = req.getPath();
 
             if (requestedPath == "/dashboard.html" || 
                 requestedPath == "/profile.html" || 
                 requestedPath == "/admin.html" || 
                 requestedPath.find("/api/protected") == 0) {
-                    if (!authSessionMiddleware(req, res)) continue;
+                    if (!authSessionMiddleware(req, res)) {
+                        continue;
+                    }
             }
 
             if (requestedPath.empty() || requestedPath == "/") {
@@ -234,5 +236,5 @@ int main() {
     close(server_fd);
     return 0;
 }
-// g++ src/server.cpp src/request.cpp -o server && ./server
+// g++ -std=c++17 src/server.cpp src/request.cpp -o server && ./server
 //curl -v http://localhost:8080/

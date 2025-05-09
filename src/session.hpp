@@ -54,7 +54,7 @@ public:
     Session* getSession(const string& sessionId) {
         auto it = sessions.find(sessionId);
         if (it != sessions.end()) {
-            if (time(nullptr) > it.second.expireAt) {
+            if (time(nullptr) > it->second.expireAt) {
                 sessions.erase(it);
                 return nullptr;
             }
@@ -91,4 +91,4 @@ public:
 };
 
 inline SessionManager sessionManager;
-#endif;
+#endif

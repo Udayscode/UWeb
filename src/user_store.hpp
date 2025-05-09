@@ -31,7 +31,7 @@ public:
         registerUser("user", "password");
     }
 
-    string registerUser(const string& username, const string& password) [
+    string registerUser(const string& username, const string& password) {
         string userId = to_string(nextUserId++);
 
         User user;
@@ -41,7 +41,7 @@ public:
 
         users[username] = user;
         return userId;
-    ]
+    }
 
     bool authenticateUser(const string& username, const string& password) {
         auto it = users.find(username);

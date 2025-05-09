@@ -9,7 +9,7 @@
 void sessionMiddleware(Request& req, Response& res) {
     string sessionId = req.getCookie("session_id");
 
-    if (!session_id.empty()) {
+    if (!sessionId.empty()) {
         Session* session = sessionManager.getSession(sessionId);
         if (session) {
             sessionManager.refreshSession(sessionId);

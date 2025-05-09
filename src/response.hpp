@@ -18,6 +18,7 @@ private:
     int statusCode = 200;
     string statusMessage = "OK";
     map<string, string> headers;
+    vector<Cookie> cookies;
     string body;
 
 public: 
@@ -45,7 +46,7 @@ public:
         Cookie cookie;
         cookie.name = name;
         cookie.value = value;
-        cookie.expires = time(nullptr) + maxAgeSeconds
+        cookie.expires = time(nullptr) + maxAgeSeconds;
         cookies.push_back(cookie);
     }
 
