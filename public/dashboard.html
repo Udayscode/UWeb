@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+        .username {
+            margin-right: 15px;
+        }
+        .logout-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .logout-btn:hover {
+            background-color: #d32f2f;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .welcome-message {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            margin-top: 0;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">My App</div>
+        <div class="user-info">
+            <span class="username" id="current-user">Loading...</span>
+            <button class="logout-btn" id="logout-btn">Logout</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <h1>Dashboard</h1>
+        <p class="welcome-message" id="welcome-message">Welcome to your dashboard!</p>
+        
+        <div class="card">
+            <h2>Protected Content</h2>
+            <p>This is a protected page that only authenticated users can access.</p>
+            <p>If you are seeing this, it means you have successfully logged in and your session is valid.</p>
+        </div>
+        
+        <div class="card">
+            <h2>Session Information</h2>
+            <p>Your session will expire after one hour of inactivity.</p>
+            <p>Each time you make a request, your session is refreshed.</p>
+        </div>
+    </div>
+
+    <script>
+        // Check if user is logged in
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/user');
+                const data = await response.json();
+                
+                if (data.loggedIn) {
+                    document.getElementById('current-user').textContent = data.username;
+                    document.getElementById('welcome-message').textContent = `Welcome to your dashboard, ${data.username}!`;
+                } else {
+                    // Not logged in, redirect to login page
+                    window.location.href = '/login.html';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                window.location.href = '/login.html';
+            }
+        }
+        
+        // Handle logout
+        document.getElementById('logout-btn').addEventListener('click', async function() {
+            try {
+                await fetch('/logout', {
+                    method: 'POST'
+                });
+                window.location.href = '/login.html';
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+        
+        // Check auth on page load
+        checkAuth();
+    </script>
+</body>
+</html>

@@ -15,6 +15,7 @@ private:
     map<string, string> cookies;
     map<string, string> query;
     map<string, string> formData;
+    map<string, string> params;
     string sessionId;
     
 public:
@@ -41,9 +42,18 @@ public:
         return (it != formData.end()) ? it->second : "";
     }
 
-    string setQuery(const string& key) const {
+    string getQuery(const string& key) const {
         auto it = query.find(key);
         return (it != query.end()) ? it->second : "";
+    }
+
+    string getParam(const string& key) const {
+        auto it = params.find(key);
+        return (it != params.end()) ? it->second : "";
+    }
+
+    void addParam(const string& key, const string& value) {
+        params[key] = value;
     }
 
     void setSessionId (const string& id) { sessionId = id; }

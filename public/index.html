@@ -3,24 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UWeb Test</title>
-    <link rel="stylesheet" href="/style.css">
+    <title>Welcome to My C++ Web Server</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .btn {
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-right: 10px;
+            margin-top: 15px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        #auth-status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .logged-in {
+            background-color: #dff0d8;
+            border: 1px solid #d6e9c6;
+            color: #3c763d;
+        }
+        .logged-out {
+            background-color: #f2dede;
+            border: 1px solid #ebccd1;
+            color: #a94442;
+        }
+    </style>
 </head>
 <body>
-    <h1>Hello from UWeb Server!</h1>
-    <p>This is a static HTML page served by your C++ web server.</p>
+    <header>
+        <h1>My C++ Web Server with Sessions & Auth</h1>
+    </header>
 
-    <hr>
+    <div class="container">
+        <h2>Welcome to the Demo</h2>
+        <p>This is a demonstration of session management and authentication using our custom C++ web server.</p>
+        
+        <div id="auth-status">Checking authentication status...</div>
+        
+        <div>
+            <a href="/login.html" class="btn" id="login-btn">Login</a>
+            <a href="/dashboard.html" class="btn">Dashboard (Protected)</a>
+            <button class="btn" id="logout-btn" style="display:none;">Logout</button>
+        </div>
 
-    <h2>Login Form</h2>
-    <form action="/login" method="POST">
-        <label>Username:
-            <input type="text" name="username" required />
-        </label><br><br>
-        <label>Password:
-            <input type="password" name="password" required />
-        </label><br><br>
-        <button type="submit">Login</button>
-    </form>
+        <div style="margin-top: 30px;">
+            <h3>Default Login Credentials:</h3>
+            <p>Username: <strong>admin</strong><br>Password: <strong>admin123</strong></p>
+            <p>Username: <strong>user</strong><br>Password: <strong>password</strong></p>
+        </div>
+    </div>
+
+    <script>
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/api/user');
+                const data = await response.json();
+                
+                const statusDiv = document.getElementById('auth-status');
+                
+                if (data.loggedIn) {
+                    statusDiv.className = 'logged-in';
+                    statusDiv.textContent = `You are logged in as: ${data.username}`;
+                    document.getElementById('login-btn').style.display = 'none';
+                    document.getElementById('logout-btn').style.display = 'inline-block';
+                } else {
+                    statusDiv.className = 'logged-out';
+                    statusDiv.textContent = 'You are not logged in.';
+                    document.getElementById('login-btn').style.display = 'inline-block';
+                    document.getElementById('logout-btn').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('auth-status').textContent = 'Error checking authentication status.';
+            }
+        }
+        
+        // Handle logout
+        document.getElementById('logout-btn').addEventListener('click', async function() {
+            try {
+                await fetch('/logout', {
+                    method: 'POST'
+                });
+                checkAuthStatus();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
+        
+        // Check auth on page load
+        checkAuthStatus();
+    </script>
 </body>
 </html>
