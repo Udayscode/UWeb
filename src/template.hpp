@@ -37,7 +37,7 @@ private:
                     replacement = data[objName][propName].get<string>();
                 }
             } else if (data.contains(varName)) {
-                if (data[varName].is_sting()) {
+                if (data[varName].is_string()) {
                     replacement = data[varName].get<string>();
                 } else if (data[varName].is_number()) {
                     replacement = data[varName].get<int>();
@@ -108,7 +108,7 @@ private:
                 }
             }
 
-            result = regex_replace(replace, regex("\\{\\%\\s*for\\s+" + itemName + "\\s+in\\s+" + arrayName + "\\s*\\%\\}[\\s\\S]*?\\{\\%\\s*endfor\\s*\\%\\}"), replacement);
+            result = regex_replace(result, regex("\\{\\%\\s*for\\s+" + itemName + "\\s+in\\s+" + arrayName + "\\s*\\%\\}[\\s\\S]*?\\{\\%\\s*endfor\\s*\\%\\}"), replacement);
 
             searchStart = matches.suffix().first;
         }
@@ -156,7 +156,7 @@ public:
         }
     }
 
-    void loadFromFile(cosnt string& filename) {
+    void loadFromFile(const string& filename) {
         string path = templateDir + filename;
         ifstream file(path);
 
@@ -168,7 +168,7 @@ public:
         stringstream buffer;
         buffer << file.rdbuf();
         templateContent = buffer.str();
-        file.close():
+        file.close();
     }
 
     string render(const json& data) {

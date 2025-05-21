@@ -21,12 +21,14 @@ protected:
         res.setStatus(200, "OK");
         res.setHeader("Content-Type", "text/html");
         res.setBody(renderedHtml);
+        res.send();
     }
 
-    void json(Response& res, const json& data, int statusCode = 200) {
+    void sendJson(Response& res, const json& data, int statusCode = 200) {
         res.setStatus(statusCode, "");
         res.setHeader("Content-Type", "application/json");
         res.setBody(data.dump());
+        res.send();
     }
 
     void redirect(Response& res, const string& location) {
@@ -100,7 +102,7 @@ public:
         bool authenticated = userStore.authenticateUser(username, password);
         if (authenticated) {
             User* user = userStore.getUserByUsername(username);
-            string = sessionId = sessionManager.createSession(user->id, user->username);
+            string sessionId = sessionManager.createSession(user->id, user->username);
 
             Cookie sessionCookie;
             sessionCookie.name = "session_id";
@@ -151,7 +153,7 @@ public:
 
         User* user = userStore.getUserByUsername(session->username);
         if (!user) {
-            redirect.(res, "login.html");
+            redirect(res, "login.html");
             return;
         }
 

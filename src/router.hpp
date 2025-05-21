@@ -125,10 +125,10 @@ public:
                         req.addParam(param.first, param.second);
                     }
 
-                    for (const auto& middleware : middlewares) {
+                    for (const auto& middleware : route.middlewares) {
                         middleware(req, res);
 
-                        if(res.isSent()) {
+                        if (res.isSent()) {
                             return;
                         }
                     }

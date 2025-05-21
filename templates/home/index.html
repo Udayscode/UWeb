@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    {% include "layouts/header.html" %}
+    
+    <main class="container">
+        <h1>{{ title }}</h1>
+        <p>{{ message }}</p>
+        
+        {% if user.isLoggedIn %}
+        <p>Welcome back, {{ user.username }}!</p>
+        <a href="/profile">View Profile</a> | 
+        <a href="/logout">Logout</a>
+        {% else %}
+        <p>Please <a href="/login">login</a> to access all features.</p>
+        {% endif %}
+    </main>
+    
+    {% include "layouts/footer.html" %}
+</body>
+</html>

@@ -20,6 +20,7 @@ private:
     map<string, string> headers;
     vector<Cookie> cookies;
     string body;
+    bool sent = false;
 
 public: 
 
@@ -60,8 +61,17 @@ public:
         headers["Content-Type"] = "application/json";
         body = jsonContent;
     }
+
+    bool isSent() const {
+        return sent;
+    }
     
     void send() {
+        if (sent) {
+            cerr << "Warning: Attempting to send response that has already been sent" << endl;
+            return;
+        }
+
         stringstream responseStream;
 
         responseStream << "HTTP/1.1 " << statusCode << " " << statusMessage << "\r\n";
@@ -91,6 +101,7 @@ public:
         cout << "[*] Closing connections...\n";
         
         close(clientSocket);
+        sent = true;
     }
 };
 
