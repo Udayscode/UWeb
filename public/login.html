@@ -95,10 +95,10 @@
                 
                 const data = await response.json();
                 
-                if (response.ok) {
+                if (response.ok && data.success) {
                     window.location.href = '/dashboard.html';
                 } else {
-                    document.getElementById('error-message').textContent = data.message;
+                    document.getElementById('error-message').textContent = data.message || 'Login failed';
                     document.getElementById('error-message').style.display = 'block';
                 }
             } catch (error) {

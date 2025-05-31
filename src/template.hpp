@@ -54,16 +54,18 @@ private:
     }
 
     string processConditionals(string content, const json& data) {
-        regex ifPattern("\\{\\%\\s*if\\s+([a-zA-Z0-9_\\.]+)\\s*\\%\\}([\\s\\S]*?)\\{\\%\\s*endif\\s*\\%\\}");
-        string result = content;
+        regex ifElsePattern(R"(\{\%\s*if\s+([a-zA-Z0-9_\.]+)\s*\%\}([\s\S]*?)\{\%\s*else\s*\%\}([\s\S]*?)\{\%\s*endif\s*\%\})");
+        regex ifPattern(R"(\{\%\s*if\s+([a-zA-Z0-9_\.]+)\s*\%\}([\s\S]*?)\{\%\s*endif\s*\%\})");
+    
         smatch matches;
-
+    
         string::const_iterator searchStart(content.cbegin());
-        while (regex_search(searchStart, content.cend(), matches, ifPattern)) {
+        while (regex_search(searchStart, content.cend(), matches, ifElsePattern)) {
             string condition = matches[1].str();
             string ifContent = matches[2].str();
+            string elseContent = matches[3].str();
             bool conditionMet = false;
-
+    
             if (data.contains(condition)) {
                 if (data[condition].is_boolean()) {
                     conditionMet = data[condition].get<bool>();
@@ -75,15 +77,37 @@ private:
                     conditionMet = !data[condition].empty();
                 }
             }
-
-            string replacement = conditionMet ? ifContent : "";
-            result = regex_replace(result, regex("\\{\\%\\s*if\\s+" + condition + "\\s*\\%\\}[\\s\\S]*?\\{\\%\\s*endif\\s*\\%\\}"), replacement);
-            
-            searchStart = matches.suffix().first;
+    
+            string replacement = conditionMet ? ifContent : elseContent;
+            content = regex_replace(content, regex("\\{\\%\\s*if\\s+" + condition + "\\s*\\%\\}[\\s\\S]*?\\{\\%\\s*else\\s*\\%\\}[\\s\\S]*?\\{\\%\\s*endif\\s*\\%\\}"), replacement, regex_constants::format_first_only);
+            searchStart = content.cbegin(); 
         }
-
-        return result;
-    }
+    
+        searchStart = content.cbegin();
+        while (regex_search(searchStart, content.cend(), matches, ifPattern)) {
+            string condition = matches[1].str();
+            string ifContent = matches[2].str();
+            bool conditionMet = false;
+    
+            if (data.contains(condition)) {
+                if (data[condition].is_boolean()) {
+                    conditionMet = data[condition].get<bool>();
+                } else if (data[condition].is_string()) {
+                    conditionMet = !data[condition].get<string>().empty();
+                } else if (data[condition].is_number()) {
+                    conditionMet = data[condition].get<int>() != 0;
+                } else if (data[condition].is_array() || data[condition].is_object()) {
+                    conditionMet = !data[condition].empty();
+                }
+            }
+    
+            string replacement = conditionMet ? ifContent : "";
+            content = regex_replace(content, regex("\\{\\%\\s*if\\s+" + condition + "\\s*\\%\\}[\\s\\S]*?\\{\\%\\s*endif\\s*\\%\\}"), replacement, regex_constants::format_first_only);
+            searchStart = content.cbegin(); 
+        }
+    
+        return content;
+    }    
 
     string processLoops(string content, const json& data) {
         regex forPattern("\\{\\%\\s*for\\s+([a-zA-Z0-9_]+)\\s+in\\s+([a-zA-Z0-9_]+)\\s*\\%\\}([\\s\\S]*?)\\{\\%\\s*endfor\\s*\\%\\}");

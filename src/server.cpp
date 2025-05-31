@@ -48,25 +48,34 @@ string getMimeType(const string& path) {
     if (endsWith(path, ".png")) return "image/png";
     if (endsWith(path, ".jpg") || endsWith(path, ".jpeg")) return "image/jpeg";
     if (endsWith(path, ".svg")) return "image/svg+xml";
+    if (endsWith(path, ".ico")) return "image/x-icon";
     return "text/plain";
 }
 
 string readFile(const string& path) {
+    cout << "[DEBUG] readFile trying to open: " << path << endl;
     ifstream file(path, ios::binary);
-    if(!file.is_open()) return "";
+    if(!file.is_open()) {
+        cerr << "[ERROR] Could not open file: " << path << " errno: " << strerror(errno) << endl;
+        return "";
+    }
 
     string content((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
     return content;
 }
 
 void serverStaticFile(Request& req, Response& res) {
+    cout << "[DEBUG] serverStaticFile called for path: " << req.getPath() << endl;
     string requestedPath = req.getPath();
 
     if (requestedPath.empty() || requestedPath == "/") {
         requestedPath = "/index.html";
     }
 
-    string filePath = "./public/*" + requestedPath;
+    string filePath = "./public" + (requestedPath.front() == '/' ? requestedPath : "/" + requestedPath);
+
+    cout << "[DEBUG] Serving file: " << filePath << endl;
+
     string fileData = readFile(filePath);
     string contentType = getMimeType(filePath);
 
@@ -74,9 +83,10 @@ void serverStaticFile(Request& req, Response& res) {
         res.setStatus(200, "OK");
         res.setHeader("Content-Type", contentType);
         res.setHeader("Content-Length", to_string(fileData.size()));
+        res.setBody(fileData);
     } else {
         res.setStatus(404, "Not Found");
-        res.setHeader("Content-Type", "tex/html");
+        res.setHeader("Content-Type", "text/html");
         res.setBody("<h1>404 Not Found</h1><p>The requested resource could not be found.</p>");
     }
 
@@ -91,6 +101,8 @@ int main() {
 
     HomeController homeController;
     UserController userController;
+    SessionManager sessionManager;
+    UserStore userStore;
 
     Router router;
 
@@ -110,10 +122,6 @@ int main() {
         return rateLimitMiddleware(req, res);
     });
 
-    router.use([](Request& req, Response& res){
-        return sessionMiddleware(req, res);
-    });
-
     // Home Routes
     router.get("/", [&](Request& req, Response& res) {
         homeController.index(req, res);
@@ -128,7 +136,7 @@ int main() {
         userController.showLoginForm(req, res);
     });
 
-    router.get("/login", [&](Request& req, Response& res) {
+    router.post("/login", [&](Request& req, Response& res) {
         userController.login(req, res);
     });
 
@@ -195,6 +203,11 @@ int main() {
         res.send();
     });
 
+    router.get("/*", [&](Request& req, Response& res){
+        cout << "[DEBUG] Static file route matched: " << req.getPath() << endl;
+        serverStaticFile(req, res);
+    });
+
     // 1. Creating socket
     cout << "[*] Creating socket...\n";
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -231,7 +244,7 @@ int main() {
 
     cout << "[*] UWeb Framework started successfully!\n";
     cout << "[*] Visit http://localhost:8080/ in your browser\n";
-
+    
     // 5. Accepting connection
     while(true) {
         cout << "[*] Waiting for client...\n";

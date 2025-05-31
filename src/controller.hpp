@@ -12,6 +12,9 @@
 using json = nlohmann::json;
 using namespace std;
 
+extern SessionManager sessionManager;
+extern UserStore userStore;
+
 class Controller {
 protected:
     void render(Response& res, const string& templateFile, const json& data = {}) {
@@ -99,8 +102,16 @@ public:
         string username = req.getFormData("username");
         string password = req.getFormData("password");
 
+        cout << "[DEBUG] Login attempt: " << username << endl;
+
         bool authenticated = userStore.authenticateUser(username, password);
+        
+        string contentType = req.getHeader("Content-Type");
+        bool isJsonRequest = (contentType.find("application/json") != string::npos);
+
         if (authenticated) {
+
+            cout << "[DEBUG] User Authenticated: " << username << endl;
             User* user = userStore.getUserByUsername(username);
             string sessionId = sessionManager.createSession(user->id, user->username);
 
@@ -111,15 +122,35 @@ public:
             sessionCookie.httpOnly = true;
 
             res.setCookie(sessionCookie);
-            redirect(res, "/dashboard.html");
+            
+            if (isJsonRequest || req.getHeader("Accept").find("application/json") != string::npos) {
+                json responseJson = {
+                    {"success", true},
+                    {"message", "Login successful"},
+                    {"redirect", "/dashboard.html"}
+                };
+                cout << "[DEBUG] Sending JSON Response" << endl;
+                sendJson(res, responseJson);
+            } else {
+                cout << "[DEBUG] Rendering Dashboard " << endl;
+                redirect(res, "/dashboard.html");
+                cout << "[DEBUG] Dashboard Rendered " << endl;
+            }
         } else {
-            json data = {
-                {"title", "Login"},
-                {"error", true},
-                {"errorMessage", "Invalid username or password"}
-            };
-
-            render(res, "user/login.html", data);
+            if (isJsonRequest || req.getHeader("Accept").find("application/json") != string::npos) {
+                json responseJson = {
+                    {"success", false},
+                    {"message", "Invalid username or password"}
+                };
+                sendJson(res, responseJson, 401);
+            } else {
+                json data = {
+                    {"title", "Login"},
+                    {"error", true},
+                    {"errorMessage", "Invalid username or password"}
+                };
+                render(res, "user/login.html", data);
+            }
         }
     }
 

@@ -31,7 +31,7 @@ bool authSessionMiddleware(Request& req, Response& res) {
 
     Session* session = sessionManager.getSession(sessionId);
     if (!session) {
-        res.setStatus(401, "Unuthorized");
+        res.setStatus(401, "Unauthorized");
         res.setBody("Invalid or expired session");
         res.redirect("/login.html");
         res.send();

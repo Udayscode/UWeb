@@ -54,6 +54,10 @@ private:
         }
 
         regexPattern += remainingPath;
+
+        if (regexPattern.find('*') != string::npos) {
+            regexPattern = regex_replace(regexPattern, regex("\\*"), ".*");
+        }
         regexPattern += "$";
 
         return {regex(regexPattern), paramNames};
